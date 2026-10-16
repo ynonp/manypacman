@@ -42,11 +42,11 @@ function walls(ctx: CanvasRenderingContext2D) {
     } while (key !== first);
     ctx.closePath();
   }
-  ctx.fillStyle = "#101c35";
+  ctx.fillStyle = "#dce7f5";
   ctx.fill("evenodd");
   ctx.lineWidth = 1.4;
   ctx.lineJoin = "round";
-  ctx.strokeStyle = "#34568b";
+  ctx.strokeStyle = "#7c9ec5";
   ctx.stroke();
 }
 
@@ -83,7 +83,7 @@ export default function MazeCanvas({ playback, onDirection }: {
       const now = playback.serverNow(time);
       const power = new Set(state?.powerPellets);
       const pellets = state?.pellets ?? MAZE.flatMap((row, y) => [...row].flatMap((c, x) => c === "." || c === "o" ? [y * COLS + x] : []));
-      ctx.fillStyle = "#d5c6a3";
+      ctx.fillStyle = "#8b6b35";
       for (const pellet of pellets) {
         const x = (pellet % COLS + 0.5) * TILE;
         const y = (Math.floor(pellet / COLS) + 0.5) * TILE;
@@ -102,7 +102,8 @@ export default function MazeCanvas({ playback, onDirection }: {
         ctx.arc(0, -1, 9, Math.PI, 0);
         ctx.lineTo(9, 9);
         for (let i = 0; i < 3; i++) { ctx.lineTo(6 - i * 6, 6); ctx.lineTo(3 - i * 6, 9); }
-        ctx.lineTo(-9, -1); ctx.fill();
+        ctx.lineTo(-9, -1); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#26332e55"; ctx.lineWidth = 0.8; ctx.stroke();
         ctx.fillStyle = "#f7f5ec";
         for (const eye of [-3.7, 3.7]) {
           ctx.beginPath(); ctx.ellipse(eye, -1.5, 2.8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
@@ -120,7 +121,7 @@ export default function MazeCanvas({ playback, onDirection }: {
         const { x, y, direction, moving } = position(key, player.x, player.y, player.direction);
         ctx.save(); ctx.translate(x, y);
         if (player.id === you) {
-          ctx.strokeStyle = player.color; ctx.globalAlpha = 0.55;
+          ctx.strokeStyle = "#4e6059"; ctx.globalAlpha = 0.75;
           ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
           ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
           ctx.setLineDash([]); ctx.globalAlpha = 1;
@@ -129,9 +130,11 @@ export default function MazeCanvas({ playback, onDirection }: {
         ctx.globalAlpha = player.immuneUntil > now ? 0.55 + Math.sin(time / 90) * 0.25 : 1;
         const mouth = moving ? 0.15 + (Math.sin(time / 65) + 1) * 0.2 : 0.22;
         ctx.fillStyle = player.color;
-        ctx.shadowColor = player.color; ctx.shadowBlur = player.id === you ? 12 : 5;
+        ctx.shadowColor = "#26332e30"; ctx.shadowBlur = player.id === you ? 5 : 2;
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 9.5, mouth, Math.PI * 2 - mouth); ctx.closePath(); ctx.fill();
-        ctx.shadowBlur = 0; ctx.fillStyle = "#11151b";
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#26332e88"; ctx.lineWidth = 0.9; ctx.stroke();
+        ctx.fillStyle = "#11151b";
         ctx.beginPath(); ctx.arc(0.7, -5, 1.35, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
