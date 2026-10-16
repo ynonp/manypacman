@@ -1,0 +1,64 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Pull, build, and restart pacman
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KEY_FILE: ${{ runner.temp }}/pacman_deploy_key
+          SSH_HOSTS_FILE: ${{ runner.temp }}/pacman_known_hosts
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f "$SSH_KEY_FILE" "$SSH_HOSTS_FILE"' EXIT
+          test -n "$SSH_PRIVATE_KEY"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$SSH_KEY_FILE"
+          printf '%s\n' '167.71.41.11 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHZdAoM2Jwn/i6fyGPzgAQO+M0ugdpom5mt7HAfexJDy' > "$SSH_HOSTS_FILE"
+
+          ssh -i "$SSH_KEY_FILE" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$SSH_HOSTS_FILE" \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=5 \
+            pacman@167.71.41.11 'bash -se' <<'DEPLOY'
+          set -euo pipefail
+          exec 9>/home/pacman/.deploy.lock
+          flock -w 900 9
+          cd /home/pacman/app
+          test "$(git branch --show-current)" = main
+          test -z "$(git status --porcelain --untracked-files=no)"
+          GIT_TERMINAL_PROMPT=0 git pull --ff-only origin main
+          npm ci --include=dev
+          npm run build
+          sudo -n /usr/bin/systemctl restart pacman.service
+
+          for attempt in {1..30}; do
+            if systemctl is-active --quiet pacman.service && \
+              curl --fail --silent --show-error --max-time 5 \
+                --output /dev/null http://127.0.0.1:3000/; then
+              echo "Deployment healthy: $(git rev-parse --short HEAD)"
+              exit 0
+            fi
+            sleep 2
+          done
+          systemctl status pacman.service --no-pager || true
+          exit 1
+          DEPLOY

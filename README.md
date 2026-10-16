@@ -53,6 +53,30 @@ location /api/game {
 
 Proxy the remaining paths to the same Node server as usual. The application also sends `X-Accel-Buffering: no`. HTTPS works without a separate WebSocket configuration.
 
+## Automatic deployment
+
+The `Deploy` GitHub Actions workflow runs on every push to `main`. It can also be
+started manually from the Actions tab on `main`. It connects to
+`pacman@167.71.41.11`, pulls `main` into `/home/pacman/app`, runs
+`npm ci --include=dev` and `npm run build`, then restarts `pacman.service` using
+passwordless sudo. The run succeeds once the service is active and the local
+HTTP endpoint responds successfully. Deployments run one at a time.
+
+The SSH private key is stored in the repository Actions secret `DEPLOY_SSH_KEY`.
+Its public key is installed in `/home/pacman/.ssh/authorized_keys` on the server.
+The workflow pins the server's Ed25519 host key; update that value if the server
+is replaced or its host key is rotated. To rotate the deployment key, add the new
+public key to the server, replace the GitHub secret, verify deployment, and remove
+the old public key.
+
+The server needs Git access to this repository, Node.js 22.18 or later, npm,
+`flock`, curl, and permission for `pacman` to run
+`sudo -n /usr/bin/systemctl restart pacman.service`. Keep the server checkout on
+`main` without local tracked-file edits; deployments fail rather than overwrite
+those edits. Dependency installation and building happen in the service's working
+directory, so deployments can briefly interrupt requests and restarting resets the
+in-memory game.
+
 ## Checks
 
 ```sh
